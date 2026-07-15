@@ -12,7 +12,7 @@ public class LoginAction extends Action {
 
     public void login(String user, String password, String errorMessage){
         LoginPage lg = new LoginPage(getWebAction());
-        lg.navigate("https://www.saucedemo.com/index.html")
+        lg.navigate("https://www.saucedemo.com/")
                 .login(user,password);
 
         if(errorMessage == null){

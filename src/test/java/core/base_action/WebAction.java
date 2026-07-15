@@ -2,21 +2,22 @@ package core.base_action;
 
 import core.extent_report.ReportLogLevel;
 import core.extent_report.TestReportManager;
-import io.github.bonigarcia.wdm.ChromeDriverManager;
-import io.github.bonigarcia.wdm.DriverManagerType;
-import io.github.bonigarcia.wdm.FirefoxDriverManager;
-import io.github.bonigarcia.wdm.InternetExplorerDriverManager;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 public class WebAction {
@@ -44,7 +45,7 @@ public class WebAction {
 
     public void setBrowser(WebDriver browser){
         this.browser = browser;
-        this.browserWait = new WebDriverWait(browser, getTimeoutDefault());
+        this.browserWait = new WebDriverWait(browser, Duration.ofSeconds(getTimeoutDefault()));
         this.executor = (JavascriptExecutor) browser;
     }
 
@@ -111,25 +112,38 @@ public class WebAction {
         WebDriver newBrowser;
         switch (getBrowserType()) {
             case CHROME:
-                ChromeDriverManager.getInstance(DriverManagerType.CHROME).setup();
-                newBrowser = new ChromeDriver();
+                WebDriverManager.chromedriver().setup();
+                newBrowser = new ChromeDriver(getChromeOptionsWithPasswordManagerDisabled());
                 break;
             case FIREFOX:
-                FirefoxDriverManager.getInstance(DriverManagerType.FIREFOX).setup();
+                WebDriverManager.firefoxdriver().setup();
                 newBrowser = new FirefoxDriver();
                 break;
             case IE:
-                InternetExplorerDriverManager.getInstance(DriverManagerType.IEXPLORER).arch32().setup();
+                WebDriverManager.iedriver().setup();
                 newBrowser = new InternetExplorerDriver();
                 break;
             default:
-                ChromeDriverManager.getInstance(DriverManagerType.CHROME).setup();
-                newBrowser = new ChromeDriver();
+                WebDriverManager.chromedriver().setup();
+                newBrowser = new ChromeDriver(getChromeOptionsWithPasswordManagerDisabled());
                 break;
         }
         //browser.manage().timeouts().implicitlyWait(1, TimeUnit.SECONDS);
         getListBrowsers().add(newBrowser);
         setBrowser(newBrowser);
+    }
+
+    private ChromeOptions getChromeOptionsWithPasswordManagerDisabled() {
+        // Chrome's built-in password manager/breach-check UI can pop a "Change your password"
+        // prompt over the page for well-known demo credentials, blocking clicks/typing mid-test.
+        ChromeOptions options = new ChromeOptions();
+        Map<String, Object> prefs = new HashMap<>();
+        prefs.put("credentials_enable_service", false);
+        prefs.put("profile.password_manager_enabled", false);
+        prefs.put("profile.password_manager_leak_detection", false);
+        options.setExperimentalOption("prefs", prefs);
+        options.addArguments("--disable-features=PasswordLeakDetection,AutofillEnableAccountWalletStorage");
+        return options;
     }
 
     public void stopBrowser() {
@@ -219,7 +233,7 @@ public class WebAction {
     }
 
     public Object waitUntil(ExpectedCondition condition, int timeOutInSec) {
-        return new WebDriverWait(getBrowser(), timeOutInSec).until(condition);
+        return new WebDriverWait(getBrowser(), Duration.ofSeconds(timeOutInSec)).until(condition);
     }
 
     public void waitUntilWithoutThrowException(ExpectedCondition condition) {
@@ -254,7 +268,7 @@ public class WebAction {
     }
 
     public boolean waitForTextPresentOnElement(WebElement ele, String text, int timeout) {
-        WebDriverWait wait = new WebDriverWait(getBrowser(), timeout);
+        WebDriverWait wait = new WebDriverWait(getBrowser(), Duration.ofSeconds(timeout));
         ExpectedCondition<Boolean> textToBePresentInElementValue = arg0 -> {
             try {
                 String actText = ele.getText();
@@ -402,7 +416,9 @@ public class WebAction {
                     return false;
                 }
             };
-            waitUntil(textToBePresentInElementValue,timeoutDefault);
+            // Some saucedemo.com flows (e.g. locked_out_user) respond noticeably slower than
+            // normal, so give the retype-to-match check more headroom than the default wait.
+            waitUntil(textToBePresentInElementValue, Math.max(timeoutDefault * 2, 40));
         } else {
             ele.clear();
             ele.sendKeys(txt);

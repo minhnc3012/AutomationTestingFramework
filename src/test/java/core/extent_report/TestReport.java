@@ -1,7 +1,7 @@
 package core.extent_report;
 
 import com.aventstack.extentreports.*;
-import com.aventstack.extentreports.reporter.ExtentHtmlReporter;
+import com.aventstack.extentreports.reporter.ExtentSparkReporter;
 import core.utilities.ArrayListHandler;
 import core.utilities.HashMapHandler;
 import org.apache.commons.io.FilenameUtils;
@@ -54,10 +54,14 @@ public class TestReport {
         }
 
         //init html report
-        ExtentHtmlReporter htmlReporter = new ExtentHtmlReporter(htmlOutputFile);
+        ExtentSparkReporter htmlReporter = new ExtentSparkReporter(htmlOutputFile);
         if (!configFilePath.equals("")) {
             ext.setReportUsesManualConfiguration(true);
-            htmlReporter.loadXMLConfig(configFilePath);
+            try {
+                htmlReporter.loadXMLConfig(configFilePath);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         ext.attachReporter(htmlReporter);
         for (String key : envMap.keySet()) {
@@ -149,12 +153,7 @@ public class TestReport {
     public void testPass(String msg, String imagePath) {
         ExtentTest test = testCase.get();
         if (!imagePath.equals("")) {
-            try {
-                test.pass(msg + "<br> <b>Screen:</b> ", MediaEntityBuilder.createScreenCaptureFromBase64String(imagePath).build());
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            test.pass(msg + "<br> <b>Screen:</b> ", MediaEntityBuilder.createScreenCaptureFromBase64String(imagePath).build());
         }
         else{
             test.pass(msg);
@@ -170,11 +169,7 @@ public class TestReport {
         ExtentTest test = testCase.get();
 
         if (!imagePath.equals("")) {
-            try {
-                test.fail(msg + "<br> <b>Error Screen:</b> ", MediaEntityBuilder.createScreenCaptureFromBase64String(imagePath).build());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            test.fail(msg + "<br> <b>Error Screen:</b> ", MediaEntityBuilder.createScreenCaptureFromBase64String(imagePath).build());
         }
         else{
             test.fail(msg);
@@ -182,7 +177,7 @@ public class TestReport {
     }
 
     public String getTestCaseDurationTime(){
-        return testCase.get().getModel().getRunDuration();
+        return testCase.get().getModel().timeTakenPretty();
     }
 
     public Date getTestCaseStartTime(){
@@ -190,7 +185,7 @@ public class TestReport {
     }
 
     public String getTestSuiteDurationTime(){
-        return curSuites.get(curSuites.size() - 1).get().getModel().getRunDuration();
+        return curSuites.get(curSuites.size() - 1).get().getModel().timeTakenPretty();
     }
 
     public Date getTestSuiteStartTime(){
